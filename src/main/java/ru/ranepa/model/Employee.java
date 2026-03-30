@@ -13,6 +13,27 @@ public class Employee {
     //Alt + insert
 
     public Employee(String name, String position, double salary, LocalDate hireDate) {
+        // Проверка: зарплата должна быть больше 0
+        if (salary <= 0) {
+            throw new IllegalArgumentException("Salary must be greater than 0. Got: " + salary);
+        }
+
+        // Проверка: дата приёма не может быть в будущем
+        if (hireDate.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Hire date cannot be in the future. Got: " + hireDate);
+        }
+
+        // Проверка: имя не должно быть пустым
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("Name cannot be empty");
+        }
+
+        // Проверка: должность не должна быть пустой
+        if (position == null || position.trim().isEmpty()) {
+            throw new IllegalArgumentException("Position cannot be empty");
+        }
+
+        // Если все проверки пройдены — присваиваем значения
         this.name = name;
         this.position = position;
         this.salary = BigDecimal.valueOf(salary);

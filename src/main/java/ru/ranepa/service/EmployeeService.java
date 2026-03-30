@@ -6,8 +6,9 @@ import ru.ranepa.repository.EmployeeRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Comparator;
+import java.util.List;
+import java.time.LocalDate;
 
 public class EmployeeService {
     private final EmployeeRepository employeeRepository;
@@ -19,33 +20,28 @@ public class EmployeeService {
 
     // Расчет средней зарплаты
     public BigDecimal calculateAverageSalary() {
-        List<Employee> employees = new ArrayList<>();
-        employeeRepository.findAll().forEach(employees::add);
+        BigDecimal sum = BigDecimal.ZERO;
+        int count = 0;
 
-        if (employees.isEmpty()) {
+        for (Employee employee : employeeRepository.findAll()) {
+            sum = sum.add(employee.getSalary());
+            count++;
+        }
+
+        if (count == 0) {
             return BigDecimal.ZERO;
         }
 
-        BigDecimal sum = BigDecimal.ZERO;
-        for (Employee employee : employees) {
-            sum = sum.add(employee.getSalary());
-        }
-
-        return sum.divide(BigDecimal.valueOf(employees.size()), 2, RoundingMode.HALF_UP);
+        return sum.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP);
     }
 
-    // Поиск самого высокооплачиваемого сотрудникае
+    // Поиск самого высокооплачиваемого сотрудника
     public Employee findHighestPaidEmployee() {
-        List<Employee> employees = new ArrayList<>();
-        employeeRepository.findAll().forEach(employees::add);
+        Employee highestPaid = null;
 
-        if (employees.isEmpty()) {
-            return null;
-        }
-
-        Employee highestPaid = employees.getFirst();
-        for (Employee employee : employees) {
-            if (employee.getSalary().compareTo(highestPaid.getSalary()) > 0) {
+        for (Employee employee : employeeRepository.findAll()) {
+            if (highestPaid == null ||
+                    employee.getSalary().compareTo(highestPaid.getSalary()) > 0) {
                 highestPaid = employee;
             }
         }
@@ -56,10 +52,8 @@ public class EmployeeService {
     // Фильтрация по должности
     public List<Employee> findByPosition(String position) {
         List<Employee> result = new ArrayList<>();
-        List<Employee> employees = new ArrayList<>();
-        employeeRepository.findAll().forEach(employees::add);
 
-        for (Employee employee : employees) {
+        for (Employee employee : employeeRepository.findAll()) {
             if (employee.getPosition().equalsIgnoreCase(position)) {
                 result.add(employee);
             }
@@ -67,23 +61,36 @@ public class EmployeeService {
 
         return result;
     }
-    // Сортировка по имени (фамилии)
+
+    // Сортировка по имени
     public List<Employee> sortByNames() {
         List<Employee> employees = new ArrayList<>();
-        employeeRepository.findAll().forEach(employees::add);
+        for (Employee employee : employeeRepository.findAll()) {
+            employees.add(employee);
+        }
 
         employees.sort(Comparator.comparing(Employee::getName));
-
         return employees;
     }
 
     // Сортировка по дате приема на работу
     public List<Employee> sortByHireDate() {
         List<Employee> employees = new ArrayList<>();
-        employeeRepository.findAll().forEach(employees::add);
+        for (Employee employee : employeeRepository.findAll()) {
+            employees.add(employee);
+        }
 
         employees.sort(Comparator.comparing(Employee::getHireDate));
-
         return employees;
     }
+    // Добавление сотрудника
+    public String addEmployee(String name, String position, double salary, LocalDate hireDate) {
+        Employee newEmployee = new Employee(name, position, salary, hireDate);
+        return employeeRepository.save(newEmployee);
+    }
+    // Удаление сотрудника
+    public String deleteEmployee(Long id) {
+        return employeeRepository.delete(id);
+    }
+
 }
