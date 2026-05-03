@@ -1,96 +1,97 @@
 package ru.ranepa.service;
 
+import ru.ranepa.dto.*;
+import ru.ranepa.exception.EmployeeNotFoundException;
 import ru.ranepa.model.Employee;
 import ru.ranepa.repository.EmployeeRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.time.LocalDate;
+import java.util.stream.Collectors;
+import java.math.RoundingMode;
 
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class EmployeeService {
+
     private final EmployeeRepository employeeRepository;
 
-    // Конструктор
-    public EmployeeService(EmployeeRepository employeeRepository) {
-        this.employeeRepository = employeeRepository;
+    @Transactional
+    public EmployeeResponseDto create(EmployeeRequestDto request) {
+        Employee employee = new Employee();
+        employee.setName(request.getName());
+        employee.setPosition(request.getPosition());
+        employee.setSalary(request.getSalary());
+        employee.setHireDate(request.getHireDate());
+
+        Employee saved = employeeRepository.save(employee);
+        return mapToResponse(saved);
     }
 
-    // Расчет средней зарплаты
-    public BigDecimal calculateAverageSalary() {
-        BigDecimal sum = BigDecimal.ZERO;
-        int count = 0;
+    public EmployeeResponseDto getById(Long id) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new EmployeeNotFoundException(id));
+        return mapToResponse(employee);
+    }
 
-        for (Employee employee : employeeRepository.findAll()) {
-            sum = sum.add(employee.getSalary());
-            count++;
+    public List<EmployeeResponseDto> getAll() {
+        return employeeRepository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        if (!employeeRepository.existsById(id)) {
+            throw new EmployeeNotFoundException(id);
+        }
+        employeeRepository.deleteById(id);
+    }
+
+    public List<EmployeeResponseDto> getByPosition(String position) {
+        return employeeRepository.findByPosition(position).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    public EmployeeStatsDto getStatistics() {
+        List<Employee> employees = employeeRepository.findAll();
+
+        if (employees.isEmpty()) {
+            return EmployeeStatsDto.builder()
+                    .totalEmployees(0L)
+                    .averageSalary(BigDecimal.ZERO)
+                    .topEarner(null)
+                    .build();
         }
 
-        if (count == 0) {
-            return BigDecimal.ZERO;
-        }
+        BigDecimal avgSalary = employees.stream()
+                .map(Employee::getSalary)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(employees.size()), 2, RoundingMode.HALF_UP);
 
-        return sum.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP);
+        Employee top = employees.stream()
+                .max((e1, e2) -> e1.getSalary().compareTo(e2.getSalary()))
+                .orElse(null);
+
+        return EmployeeStatsDto.builder()
+                .totalEmployees((long) employees.size())
+                .averageSalary(avgSalary)
+                .topEarner(top != null ? mapToResponse(top) : null)
+                .build();
     }
 
-    // Поиск самого высокооплачиваемого сотрудника
-    public Employee findHighestPaidEmployee() {
-        Employee highestPaid = null;
-
-        for (Employee employee : employeeRepository.findAll()) {
-            if (highestPaid == null ||
-                    employee.getSalary().compareTo(highestPaid.getSalary()) > 0) {
-                highestPaid = employee;
-            }
-        }
-
-        return highestPaid;
+    private EmployeeResponseDto mapToResponse(Employee employee) {
+        return EmployeeResponseDto.builder()
+                .id(employee.getId())
+                .name(employee.getName())
+                .position(employee.getPosition())
+                .salary(employee.getSalary())
+                .hireDate(employee.getHireDate())
+                .build();
     }
-
-    // Фильтрация по должности
-    public List<Employee> findByPosition(String position) {
-        List<Employee> result = new ArrayList<>();
-
-        for (Employee employee : employeeRepository.findAll()) {
-            if (employee.getPosition().equalsIgnoreCase(position)) {
-                result.add(employee);
-            }
-        }
-
-        return result;
-    }
-
-    // Сортировка по имени
-    public List<Employee> sortByNames() {
-        List<Employee> employees = new ArrayList<>();
-        for (Employee employee : employeeRepository.findAll()) {
-            employees.add(employee);
-        }
-
-        employees.sort(Comparator.comparing(Employee::getName));
-        return employees;
-    }
-
-    // Сортировка по дате приема на работу
-    public List<Employee> sortByHireDate() {
-        List<Employee> employees = new ArrayList<>();
-        for (Employee employee : employeeRepository.findAll()) {
-            employees.add(employee);
-        }
-
-        employees.sort(Comparator.comparing(Employee::getHireDate));
-        return employees;
-    }
-    // Добавление сотрудника
-    public String addEmployee(String name, String position, double salary, LocalDate hireDate) {
-        Employee newEmployee = new Employee(name, position, salary, hireDate);
-        return employeeRepository.save(newEmployee);
-    }
-    // Удаление сотрудника
-    public String deleteEmployee(Long id) {
-        return employeeRepository.delete(id);
-    }
-
 }
